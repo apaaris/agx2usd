@@ -1,0 +1,11 @@
+build/
+*.usdc
+*.usda
+*.agx
+*.o
+*.so
+*.a
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
