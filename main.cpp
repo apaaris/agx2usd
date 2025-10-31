@@ -16,7 +16,9 @@
 #include <pxr/usd/usdGeom/primvarsAPI.h>
 #include <pxr/usd/usdGeom/metrics.h>
 #include <pxr/base/vt/array.h>
+#include <pxr/base/gf/vec2f.h>
 #include <pxr/base/gf/vec3f.h>
+#include <pxr/base/gf/vec4f.h>
 #include <pxr/base/tf/token.h>
 
 // std
@@ -232,9 +234,73 @@ bool convertToUSDMesh(AGXReader reader, const std::string &outputPath)
           std::cout << "  -> Set " << numNormals << " normals at time " << timeCode << "\n";
         }
       }
-      // Handle UVs
-      else if (paramName == "vertex.attribute0" || paramName == "uv" || 
-               paramName == "vertex.uv" || paramName == "texcoord") {
+      // Handle vertex.attribute0 as primvar (for shading/coloring)
+      else if (paramName == "vertex.attribute0" || paramName == "attribute0") {
+        
+        if (pv.isArray) {
+          UsdGeomPrimvarsAPI primvarsAPI(mesh);
+          
+          // Handle different attribute types
+          if (pv.elementType == ANARI_FLOAT32) {
+            // Scalar attribute (e.g., for color mapping)
+            const float *data = reinterpret_cast<const float *>(pv.data);
+            VtArray<float> values(pv.elementCount);
+            for (size_t i = 0; i < pv.elementCount; ++i) {
+              values[i] = data[i];
+            }
+            
+            auto primvar = primvarsAPI.CreatePrimvar(TfToken("attribute0"), 
+                                             SdfValueTypeNames->FloatArray,
+                                             UsdGeomTokens->vertex);
+            primvar.Set(values, timeCode);
+            std::cout << "  -> Set scalar attribute0 (" << pv.elementCount << " values) at time " << timeCode << "\n";
+          }
+          else if (pv.elementType == ANARI_FLOAT32_VEC2) {
+            // Vec2 attribute (e.g., UVs)
+            const float *data = reinterpret_cast<const float *>(pv.data);
+            VtArray<GfVec2f> values(pv.elementCount);
+            for (size_t i = 0; i < pv.elementCount; ++i) {
+              values[i] = GfVec2f(data[i * 2 + 0], data[i * 2 + 1]);
+            }
+            
+            auto primvar = primvarsAPI.CreatePrimvar(TfToken("attribute0"), 
+                                             SdfValueTypeNames->Float2Array,
+                                             UsdGeomTokens->vertex);
+            primvar.Set(values, timeCode);
+            std::cout << "  -> Set vec2 attribute0 (" << pv.elementCount << " values) at time " << timeCode << "\n";
+          }
+          else if (pv.elementType == ANARI_FLOAT32_VEC3) {
+            // Vec3 attribute (e.g., colors)
+            const float *data = reinterpret_cast<const float *>(pv.data);
+            VtArray<GfVec3f> values(pv.elementCount);
+            for (size_t i = 0; i < pv.elementCount; ++i) {
+              values[i] = GfVec3f(data[i * 3 + 0], data[i * 3 + 1], data[i * 3 + 2]);
+            }
+            
+            auto primvar = primvarsAPI.CreatePrimvar(TfToken("attribute0"), 
+                                             SdfValueTypeNames->Float3Array,
+                                             UsdGeomTokens->vertex);
+            primvar.Set(values, timeCode);
+            std::cout << "  -> Set vec3 attribute0 (" << pv.elementCount << " values) at time " << timeCode << "\n";
+          }
+          else if (pv.elementType == ANARI_FLOAT32_VEC4) {
+            // Vec4 attribute (e.g., RGBA colors)
+            const float *data = reinterpret_cast<const float *>(pv.data);
+            VtArray<GfVec4f> values(pv.elementCount);
+            for (size_t i = 0; i < pv.elementCount; ++i) {
+              values[i] = GfVec4f(data[i * 4 + 0], data[i * 4 + 1], data[i * 4 + 2], data[i * 4 + 3]);
+            }
+            
+            auto primvar = primvarsAPI.CreatePrimvar(TfToken("attribute0"), 
+                                             SdfValueTypeNames->Float4Array,
+                                             UsdGeomTokens->vertex);
+            primvar.Set(values, timeCode);
+            std::cout << "  -> Set vec4 attribute0 (" << pv.elementCount << " values) at time " << timeCode << "\n";
+          }
+        }
+      }
+      // Handle UVs (separate from attribute0)
+      else if (paramName == "uv" || paramName == "vertex.uv" || paramName == "texcoord") {
         
         if (pv.isArray && pv.elementType == ANARI_FLOAT32_VEC2) {
           const float *uvData = reinterpret_cast<const float *>(pv.data);
