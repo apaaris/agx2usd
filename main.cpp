@@ -254,6 +254,29 @@ bool convertToUSDMesh(AGXReader reader, const std::string &outputPath)
           std::cout << "  -> Set " << numUVs << " UVs at time " << timeCode << "\n";
         }
       }
+      // Handle triangle indices (topology can change per timestep)
+      else if (paramName == "primitive.index" || paramName == "index" || 
+               paramName == "primitive.indices" || paramName == "indices") {
+        
+        if (pv.isArray && pv.elementType == ANARI_UINT32_VEC3) {
+          const uint32_t *indexData = reinterpret_cast<const uint32_t *>(pv.data);
+          size_t numIndices = pv.elementCount * 3; // VEC3 = 3 indices per triangle
+          
+          VtArray<int> indices(numIndices);
+          for (size_t i = 0; i < numIndices; ++i) {
+            indices[i] = static_cast<int>(indexData[i]);
+          }
+          
+          mesh.GetFaceVertexIndicesAttr().Set(indices, timeCode);
+          
+          // Set face vertex counts (all triangles = 3 vertices each)
+          size_t numFaces = pv.elementCount;
+          VtArray<int> faceCounts(numFaces, 3);
+          mesh.GetFaceVertexCountsAttr().Set(faceCounts, timeCode);
+          
+          std::cout << "  -> Set mesh topology (" << numFaces << " triangles) at time " << timeCode << "\n";
+        }
+      }
       // Handle generic time parameter
       else if (paramName == "time") {
         if (!pv.isArray && pv.elementType == ANARI_UNKNOWN) {
